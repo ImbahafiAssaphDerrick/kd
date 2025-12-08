@@ -58,7 +58,7 @@ describe('E2E Tests - API Endpoints', () => {
     });
   });
 
-  it('should respond with 200 for health', (done) => {
+  test('should respond with 200 for health', (done) => {
     request(app)
       .get('/health')
       .expect(200, done);
