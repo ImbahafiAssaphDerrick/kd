@@ -4,7 +4,7 @@ const mysql = require('mysql2/promise');
  * Minimal test helper for integration/e2e tests.
  * - Parses DB_HOST which may be "host" or "host:port"
  * - Defaults to 127.0.0.1:3306 (IPv4) to avoid ::1 socket issues
- * - Exposes: getTestConnection(), setupTestDatabase(), cleanupTestDatabase()
+ * - Exposes: getTestConnection(), setupTestDatabase(), cleanupTestDatabase(), insertTestData()
  */
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -92,8 +92,66 @@ async function cleanupTestDatabase() {
   }
 }
 
+// New: insertTestData - clears tables and seeds predictable data for tests
+async function insertTestData() {
+  await setupTestDatabase();
+  const conn = await getTestConnection();
+  try {
+    await conn.query(`USE \`${DB_NAME}\`;`);
+
+    // Clear existing rows (keeps tables)
+    await conn.query(`
+      SET FOREIGN_KEY_CHECKS = 0;
+      TRUNCATE TABLE borrow_history;
+      TRUNCATE TABLE borrowers;
+      TRUNCATE TABLE books;
+      SET FOREIGN_KEY_CHECKS = 1;
+    `);
+
+    // Insert sample books (bulk)
+    const books = [
+      ['The First Book', 'Author One', 'ISBN-0001', 2, 2],
+      ['The Second Book', 'Author Two', null, 1, 1]
+    ];
+    const [rBooks] = await conn.query(
+      'INSERT INTO books (title, author, isbn, quantity, available) VALUES ?',
+      [books]
+    );
+    const firstBookId = rBooks.insertId;
+
+    // Insert sample borrowers
+    const borrowers = [
+      ['Alice Example', 'alice@example.com', '1234567890'],
+      ['Bob Sample', 'bob@example.com', '0987654321']
+    ];
+    const [rBorrowers] = await conn.query(
+      'INSERT INTO borrowers (name, email, phone) VALUES ?',
+      [borrowers]
+    );
+    const firstBorrowerId = rBorrowers.insertId;
+
+    // Create one active borrow: first book borrowed by first borrower
+    const [rHistory] = await conn.query(
+      'INSERT INTO borrow_history (book_id, borrower_id, due_date) VALUES (?, ?, ?)',
+      [firstBookId, firstBorrowerId, null]
+    );
+
+    // Decrease available count for the borrowed book
+    await conn.query('UPDATE books SET available = available - 1 WHERE id = ?', [firstBookId]);
+
+    return {
+      bookIds: [firstBookId, firstBookId + 1],
+      borrowerIds: [firstBorrowerId, firstBorrowerId + 1],
+      borrowHistoryId: rHistory.insertId
+    };
+  } finally {
+    await conn.end();
+  }
+}
+
 module.exports = {
   getTestConnection,
   setupTestDatabase,
-  cleanupTestDatabase
+  cleanupTestDatabase,
+  insertTestData
 };
