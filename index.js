@@ -320,4 +320,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Export the app for tests and only start server when run directly
+module.exports = app;
+
+if (require.main === module) {
+  startServer();
+}

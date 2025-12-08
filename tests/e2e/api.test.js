@@ -1,3 +1,6 @@
+const request = require('supertest');
+const app = require('../../index');
+
 describe('E2E Tests - API Endpoints', () => {
   test('should validate health endpoint exists', () => {
     const endpoint = '/health';
