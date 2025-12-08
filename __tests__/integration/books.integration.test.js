@@ -1,7 +1,12 @@
 const { setupTestDatabase, cleanupTestDatabase, insertTestData } = require('../../src/utils/testHelpers');
 
-// Note: Update with actual app path when implemented
-// let app;
+// Remove these lines if present at the top of the file:
+//
+// const _app = require('../../index');
+// const _request = require('supertest');
+// const app = require('../../index');
+//
+// ...existing code...
 
 beforeAll(async () => {
   // Initialize test database
