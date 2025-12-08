@@ -29,7 +29,7 @@ jobs:
     
     - name: Run ESLint
       run: npm run lint
-      continue-on-error: true
+      continue-on-error: false
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -49,13 +49,6 @@ jobs:
     
     - name: Run unit tests
       run: npm run test:unit
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./coverage/coverage-final.json
-        flags: unittests
-        fail_ci_if_error: false
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -89,34 +82,7 @@ jobs:
     
     - name: Initialize test database
       run: |
-        mysql -h localhost -u root -ppassword -e "
-        CREATE TABLE IF NOT EXISTS books (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          title VARCHAR(255) NOT NULL,
-          author VARCHAR(255) NOT NULL,
-          isbn VARCHAR(20),
-          quantity INT NOT NULL DEFAULT 1,
-          available INT NOT NULL DEFAULT 1,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS borrowers (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          email VARCHAR(255),
-          phone VARCHAR(20),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS borrow_history (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          book_id INT NOT NULL,
-          borrower_id INT NOT NULL,
-          borrowed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          due_date DATE,
-          returned_at TIMESTAMP NULL,
-          FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
-          FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
-        );
-        " library_test
+        mysql -h localhost -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS library_test;"
     
     - name: Run integration tests
       run: npm run test:integration
@@ -125,12 +91,6 @@ jobs:
         DB_USER: root
         DB_PASSWORD: password
         DB_NAME: library_test
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./coverage/coverage-final.json
-        flags: integration
 
   e2e-tests:
     runs-on: ubuntu-latest
@@ -200,7 +160,6 @@ jobs:
         tags: |
           type=ref,event=branch
           type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
           type=sha
     
     - name: Build and push Docker image
@@ -210,78 +169,27 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
 
   notify-slack:
     needs: [lint, unit-tests, integration-tests, build]
     runs-on: ubuntu-latest
     name: Notify Slack
-    if: always()
+    if: always() && secrets.SLACK_WEBHOOK_URL != ''
     
     steps:
-    - name: Determine status
-      id: status
-      run: |
-        if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.unit-tests.result }}" == "failure" || "${{ needs.integration-tests.result }}" == "failure" ]]; then
-          echo "status=FAILED" >> $GITHUB_OUTPUT
-          echo "color=danger" >> $GITHUB_OUTPUT
-        elif [[ "${{ needs.build.result }}" == "failure" ]]; then
-          echo "status=BUILD FAILED" >> $GITHUB_OUTPUT
-          echo "color=warning" >> $GITHUB_OUTPUT
-        else
-          echo "status=SUCCESS" >> $GITHUB_OUTPUT
-          echo "color=good" >> $GITHUB_OUTPUT
-        fi
-    
     - name: Send Slack notification
       uses: slackapi/slack-github-action@v1
-      if: always()
       with:
         payload: |
           {
-            "text": "CI/CD Pipeline ${{ steps.status.outputs.status }}",
+            "text": "CI/CD Pipeline Status",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "*Library Management System CI/CD*\n*Status:* ${{ steps.status.outputs.status }}\n*Branch:* ${{ github.ref }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  "text": "*Library Management System*\n*Branch:* ${{ github.ref }}\n*Status:* ${{ job.status }}"
                 }
-              },
-              {
-                "type": "section",
-                "fields": [
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Lint:*\n${{ needs.lint.result }}"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Unit Tests:*\n${{ needs.unit-tests.result }}"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Integration Tests:*\n${{ needs.integration-tests.result }}"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Build:*\n${{ needs.build.result }}"
-                  }
-                ]
-              },
-              {
-                "type": "actions",
-                "elements": [
-                  {
-                    "type": "button",
-                    "text": {
-                      "type": "plain_text",
-                      "text": "View Workflow"
-                    },
-                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                  }
-                ]
               }
             ]
           }
@@ -293,7 +201,7 @@ jobs:
     needs: [lint, unit-tests, integration-tests, build]
     runs-on: ubuntu-latest
     name: Notify Email
-    if: failure()
+    if: failure() && secrets.MAIL_SERVER != ''
     
     steps:
     - name: Send email notification
@@ -305,31 +213,5 @@ jobs:
         password: ${{ secrets.MAIL_PASSWORD }}
         subject: 'CI/CD Pipeline Failed - Library Management System'
         to: ${{ secrets.MAIL_TO }}
-        from: ${{ secrets.MAIL_FROM }}
-        body: |
-          CI/CD Pipeline Failed!
-          
-          Repository: ${{ github.repository }}
-          Branch: ${{ github.ref }}
-          Commit: ${{ github.sha }}
-          
-          Failed Jobs:
-          - Lint: ${{ needs.lint.result }}
-          - Unit Tests: ${{ needs.unit-tests.result }}
-          - Integration Tests: ${{ needs.integration-tests.result }}
-          - Build: ${{ needs.build.result }}
-          
-          View Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        html_body: |
-          <h2>CI/CD Pipeline Failed!</h2>
-          <p><strong>Repository:</strong> ${{ github.repository }}</p>
-          <p><strong>Branch:</strong> ${{ github.ref }}</p>
-          <p><strong>Commit:</strong> ${{ github.sha }}</p>
-          <h3>Failed Jobs:</h3>
-          <ul>
-            <li>Lint: ${{ needs.lint.result }}</li>
-            <li>Unit Tests: ${{ needs.unit-tests.result }}</li>
-            <li>Integration Tests: ${{ needs.integration-tests.result }}</li>
-            <li>Build: ${{ needs.build.result }}</li>
-          </ul>
-          <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Details</a>
+        from: ${{ secrets.MAIL_FROM || 'ci@example.com' }}
+        body: 'Pipeline failed for ${{ github.repository }} on branch ${{ github.ref }}'
