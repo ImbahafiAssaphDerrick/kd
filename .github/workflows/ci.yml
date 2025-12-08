@@ -174,10 +174,11 @@ jobs:
     needs: [lint, unit-tests, integration-tests, build]
     runs-on: ubuntu-latest
     name: Notify Slack
-    if: always() && secrets.SLACK_WEBHOOK_URL != ''
+    if: always()
     
     steps:
     - name: Send Slack notification
+      if: ${{ env.SLACK_WEBHOOK_URL != '' }}
       uses: slackapi/slack-github-action@v1
       with:
         payload: |
@@ -201,10 +202,11 @@ jobs:
     needs: [lint, unit-tests, integration-tests, build]
     runs-on: ubuntu-latest
     name: Notify Email
-    if: failure() && secrets.MAIL_SERVER != ''
+    if: failure()
     
     steps:
     - name: Send email notification
+      if: ${{ env.MAIL_SERVER != '' }}
       uses: dawidd6/action-send-mail@v3
       with:
         server_address: ${{ secrets.MAIL_SERVER }}
@@ -215,3 +217,5 @@ jobs:
         to: ${{ secrets.MAIL_TO }}
         from: ${{ secrets.MAIL_FROM || 'ci@example.com' }}
         body: 'Pipeline failed for ${{ github.repository }} on branch ${{ github.ref }}'
+      env:
+        MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
