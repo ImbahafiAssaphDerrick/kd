@@ -57,10 +57,10 @@ describe('E2E Tests - API Endpoints', () => {
       expect(method).toMatch(/^(GET|POST|PUT|DELETE|PATCH)$/);
     });
   });
-});
 
-it('should respond with 200 for health', (done) => {
-  request(app)
-    .get('/health')
-    .expect(200, done);
+  it('should respond with 200 for health', (done) => {
+    request(app)
+      .get('/health')
+      .expect(200, done);
+  });
 });
