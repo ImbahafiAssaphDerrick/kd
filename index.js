@@ -9,8 +9,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 // Database configuration
+// Replace previous dbConfig with parsing that supports DB_HOST (host or host:port) and DB_PORT
+const parseHostPort = (value, defaultHost = '127.0.0.1', defaultPort = 3306) => {
+  if (!value) return { host: defaultHost, port: defaultPort };
+  if (value.includes(':')) {
+    const [h, p] = value.split(':');
+    return { host: h || defaultHost, port: Number(p) || defaultPort };
+  }
+  return { host: value, port: defaultPort };
+};
+
+const envHostPort = parseHostPort(process.env.DB_HOST, '127.0.0.1', 3306);
+
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost:3307',
+  host: envHostPort.host,
+  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : envHostPort.port,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_NAME || 'library_app'

@@ -1,117 +1,99 @@
 const mysql = require('mysql2/promise');
 
 /**
- * Create database connection for testing
+ * Minimal test helper for integration/e2e tests.
+ * - Parses DB_HOST which may be "host" or "host:port"
+ * - Defaults to 127.0.0.1:3306 (IPv4) to avoid ::1 socket issues
+ * - Exposes: getTestConnection(), setupTestDatabase(), cleanupTestDatabase()
  */
+
+const DEFAULT_HOST = '127.0.0.1';
+const DEFAULT_PORT = 3306;
+const DB_USER = process.env.DB_USER || 'root';
+const DB_PASSWORD = process.env.DB_PASSWORD || 'password';
+const DB_NAME = process.env.DB_NAME || 'library_test';
+
+function parseHostPort(value) {
+  if (!value) return { host: DEFAULT_HOST, port: DEFAULT_PORT };
+  if (value.includes(':')) {
+    const [h, p] = value.split(':');
+    return { host: h || DEFAULT_HOST, port: Number(p) || DEFAULT_PORT };
+  }
+  return { host: value, port: DEFAULT_PORT };
+}
+
 async function getTestConnection() {
+  const hostEnv = process.env.DB_HOST || `${DEFAULT_HOST}:${DEFAULT_PORT}`;
+  const env = parseHostPort(hostEnv);
+  const port = process.env.DB_PORT ? Number(process.env.DB_PORT) : env.port;
+
   return mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 1,
-    queueLimit: 0
+    host: env.host,
+    port,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    multipleStatements: true
   });
 }
 
-/**
- * Setup test database
- */
 async function setupTestDatabase() {
-  const connection = await getTestConnection();
+  // Connect to server (no database) to create DB and tables
+  const conn = await getTestConnection();
   try {
-    // Clear all tables
-    await connection.execute('SET FOREIGN_KEY_CHECKS=0');
-    await connection.execute('TRUNCATE TABLE borrow_history');
-    await connection.execute('TRUNCATE TABLE borrowers');
-    await connection.execute('TRUNCATE TABLE books');
-    await connection.execute('SET FOREIGN_KEY_CHECKS=1');
+    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
+    await conn.query(`USE \`${DB_NAME}\`;`);
+
+    // Create tables used by the app/tests (idempotent)
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS books (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        author VARCHAR(255) NOT NULL,
+        isbn VARCHAR(13) UNIQUE,
+        quantity INT DEFAULT 1,
+        available INT DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS borrowers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE,
+        phone VARCHAR(20),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS borrow_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        book_id INT NOT NULL,
+        borrower_id INT NOT NULL,
+        borrowed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        returned_at TIMESTAMP NULL,
+        due_date DATE,
+        FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+        FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
+      );
+    `);
   } finally {
-    await connection.end();
+    await conn.end();
   }
 }
 
-/**
- * Cleanup test database
- */
 async function cleanupTestDatabase() {
-  const connection = await getTestConnection();
+  const conn = await getTestConnection();
   try {
-    await connection.execute('SET FOREIGN_KEY_CHECKS=0');
-    await connection.execute('DROP TABLE IF EXISTS borrow_history');
-    await connection.execute('DROP TABLE IF EXISTS borrowers');
-    await connection.execute('DROP TABLE IF EXISTS books');
-    await connection.execute('SET FOREIGN_KEY_CHECKS=1');
+    await conn.query(`DROP DATABASE IF EXISTS \`${DB_NAME}\`;`);
   } finally {
-    await connection.end();
+    await conn.end();
   }
-}
-
-/**
- * Insert test data
- */
-async function insertTestData() {
-  const connection = await getTestConnection();
-  try {
-    // Insert test books
-    await connection.execute(
-      'INSERT INTO books (title, author, isbn, quantity, available) VALUES (?, ?, ?, ?, ?)',
-      ['The Great Gatsby', 'F. Scott Fitzgerald', '978-0-7432-7356-5', 5, 5]
-    );
-    await connection.execute(
-      'INSERT INTO books (title, author, isbn, quantity, available) VALUES (?, ?, ?, ?, ?)',
-      ['To Kill a Mockingbird', 'Harper Lee', '978-0-06-112008-4', 3, 3]
-    );
-
-    // Insert test borrowers
-    await connection.execute(
-      'INSERT INTO borrowers (name, email, phone) VALUES (?, ?, ?)',
-      ['John Doe', 'john@example.com', '555-1234']
-    );
-    await connection.execute(
-      'INSERT INTO borrowers (name, email, phone) VALUES (?, ?, ?)',
-      ['Jane Smith', 'jane@example.com', '555-5678']
-    );
-  } finally {
-    await connection.end();
-  }
-}
-
-/**
- * Get mock data for tests
- */
-function getMockBook() {
-  return {
-    title: 'Test Book',
-    author: 'Test Author',
-    isbn: '978-0-0000-0000-0',
-    quantity: 2
-  };
-}
-
-function getMockBorrower() {
-  return {
-    name: 'Test Borrower',
-    email: 'test@example.com',
-    phone: '555-0000'
-  };
-}
-
-function getMockBorrow() {
-  return {
-    book_id: 1,
-    borrower_id: 1,
-    due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  };
 }
 
 module.exports = {
   getTestConnection,
   setupTestDatabase,
-  cleanupTestDatabase,
-  insertTestData,
-  getMockBook,
-  getMockBorrower,
-  getMockBorrow
+  cleanupTestDatabase
 };
