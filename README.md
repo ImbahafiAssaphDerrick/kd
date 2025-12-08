@@ -1,68 +1,137 @@
-# Notes App - DevOps Pipeline Project
+# Library Management System
 
-A simple CRUD notes application built with Node.js, Express, MySQL, and Bootstrap, implementing a complete DevOps pipeline for learning and demonstration purposes.
+A comprehensive library management system built with Node.js, Express, and MySQL.
 
-## 🚀 Features
+## Features
 
-- **CRUD Operations**: Create, Read, Update, Delete notes
-- **Responsive UI**: Bootstrap-based frontend with modern design
-- **REST API**: RESTful endpoints for note management
-- **Database Integration**: MySQL for persistent data storage
-- **Health Monitoring**: Built-in health check endpoints
-- **Containerization**: Docker support with multi-stage builds
-- **CI/CD Pipeline**: GitHub Actions for automated testing and deployment
+- **Book Management**: Add, update, and delete books
+- **Borrower Management**: Register and manage library borrowers
+- **Borrow/Return System**: Track book borrowing and returns with due dates
+- **REST API**: Full-featured REST API for all operations
+- **Web Interface**: User-friendly Bootstrap-based frontend
 
-## 📋 Table of Contents
+## Prerequisites
 
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [API Endpoints](#api-endpoints)
-- [DevOps Implementation](#devops-implementation)
-- [Database Schema](#database-schema)
-- [Docker Setup](#docker-setup)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [Monitoring & Health Checks](#monitoring--health-checks)
-- [Error Budget Policy](#error-budget-policy)
-- [Contributing](#contributing)
-
-## 🏁 Quick Start
-
-### Prerequisites
-- Node.js 18+ 
+- Node.js >= 14.0.0
 - MySQL 8.0+
-- Docker & Docker Compose (optional)
+- npm or yarn
 
-### Local Development
+## Installation
 
-1. **Clone and install dependencies:**
+1. Clone the repository
 ```bash
 git clone <repository-url>
-cd notes
+cd library
+```
+
+2. Install dependencies
+```bash
 npm install
 ```
 
-2. **Set up MySQL database:**
-```sql
-CREATE DATABASE notes_app;
-```
-
-3. **Configure environment variables:**
+3. Set up environment variables
 ```bash
-export DB_HOST=localhost
-export DB_USER=root
-export DB_PASSWORD=your_password
-export DB_NAME=notes_app
+cp .env.example .env
 ```
 
-4. **Start the application:**
+4. Configure database credentials in `.env`:
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=library_db
+```
+
+5. Initialize the database
+```bash
+npm run migrate
+```
+
+6. Seed the database (optional)
+```bash
+npm run seed
+```
+
+7. Start the application
 ```bash
 npm run dev  # Development mode with nodemon
 npm start    # Production mode
 ```
 
-5. **Access the application:**
+8. Access the application
    - Web UI: http://localhost:3000
-   - Health Check: http://localhost:3000/health
+   - API Docs: http://localhost:3000/api-docs
+
+## Usage
+
+### API Endpoints
+
+| Method | Endpoint | Description | Request Body |
+|--------|----------|-------------|--------------|
+| GET | `/` | Serve frontend application | - |
+| GET | `/api/books` | Get all books | - |
+| POST | `/api/books` | Add new book | `{title, author, isbn, publishedDate}` |
+| PUT | `/api/books/:id` | Update existing book | `{title, author, isbn, publishedDate}` |
+| DELETE | `/api/books/:id` | Delete book | - |
+| GET | `/api/borrowers` | Get all borrowers | - |
+| POST | `/api/borrowers` | Register new borrower | `{name, email, phone}` |
+| PUT | `/api/borrowers/:id` | Update borrower info | `{name, email, phone}` |
+| DELETE | `/api/borrowers/:id` | Delete borrower | - |
+| POST | `/api/borrow` | Borrow a book | `{bookId, borrowerId, dueDate}` |
+| POST | `/api/return` | Return a borrowed book | `{bookId, borrowerId}` |
+| GET | `/health` | Health check endpoint | - |
+
+### Example API Usage
+
+**Add a new book:**
+```bash
+curl -X POST http://localhost:3000/api/books \
+  -H "Content-Type: application/json" \
+  -d '{"title": "The Great Gatsby", "author": "F. Scott Fitzgerald", "isbn": "9780743273565", "publishedDate": "1925-04-10"}'
+```
+
+**Get all borrowers:**
+```bash
+curl http://localhost:3000/api/borrowers
+```
+
+## Development
+
+### Running Locally
+
+1. **Clone the repository:**
+```bash
+git clone <repository-url>
+cd library
+```
+
+2. **Install dependencies:**
+```bash
+npm install
+```
+
+3. **Set up MySQL database:**
+```sql
+CREATE DATABASE library_db;
+```
+
+4. **Configure environment variables:**
+```bash
+export DB_HOST=localhost
+export DB_USER=root
+export DB_PASSWORD=your_password
+export DB_NAME=library_db
+```
+
+5. **Start the application:**
+```bash
+npm run dev  # Development mode with nodemon
+npm start    # Production mode
+```
+
+6. **Access the application:**
+   - Web UI: http://localhost:3000
+   - API Docs: http://localhost:3000/api-docs
 
 ### Docker Development
 
@@ -70,10 +139,10 @@ npm start    # Production mode
 docker-compose up -d
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-notes/
+library/
 ├── index.js                 # Main application server
 ├── package.json             # Node.js dependencies and scripts
 ├── Dockerfile              # Multi-stage Docker build
@@ -88,32 +157,7 @@ notes/
 └── docs/                   # Additional documentation
 ```
 
-## 🔗 API Endpoints
-
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| GET | `/` | Serve frontend application | - |
-| GET | `/api/notes` | Get all notes | - |
-| POST | `/api/notes` | Create new note | `{title, content}` |
-| PUT | `/api/notes/:id` | Update existing note | `{title, content}` |
-| DELETE | `/api/notes/:id` | Delete note | - |
-| GET | `/health` | Health check endpoint | - |
-
-### Example API Usage
-
-**Create a note:**
-```bash
-curl -X POST http://localhost:3000/api/notes \
-  -H "Content-Type: application/json" \
-  -d '{"title": "My First Note", "content": "This is the content"}'
-```
-
-**Get all notes:**
-```bash
-curl http://localhost:3000/api/notes
-```
-
-## 🛠 DevOps Implementation
+## DevOps Implementation
 
 ### Phase 1: Plan ✅
 - **Scope**: Node.js CRUD application with MySQL backend
@@ -131,20 +175,48 @@ curl http://localhost:3000/api/notes
 - **Image Optimization**: Alpine Linux base, minimal dependencies
 - **Health Checks**: Built-in monitoring endpoints
 
-## 🗄 Database Schema
+## Database Schema
 
-**Notes Table:**
+**Books Table:**
 ```sql
-CREATE TABLE notes (
+CREATE TABLE books (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    content TEXT,
+    author VARCHAR(255) NOT NULL,
+    isbn VARCHAR(20) NOT NULL UNIQUE,
+    published_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 ```
 
-## 🐳 Docker Setup
+**Borrowers Table:**
+```sql
+CREATE TABLE borrowers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+**Transactions Table:**
+```sql
+CREATE TABLE transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    book_id INT NOT NULL,
+    borrower_id INT NOT NULL,
+    borrow_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    due_date TIMESTAMP,
+    return_date TIMESTAMP,
+    FOREIGN KEY (book_id) REFERENCES books(id),
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id)
+);
+```
+
+## Docker Setup
 
 ### Multi-stage Dockerfile Benefits:
 - **Security**: Non-root user execution
@@ -155,16 +227,16 @@ CREATE TABLE notes (
 ### Commands:
 ```bash
 # Build image
-docker build -t notes-app .
+docker build -t library-app .
 
 # Run container
-docker run -p 3000:3000 notes-app
+docker run -p 3000:3000 library-app
 
 # Development with database
 docker-compose up -d
 ```
 
-## 🔄 CI/CD Pipeline
+## CI/CD Pipeline
 
 ### GitHub Actions Workflow:
 
@@ -187,7 +259,7 @@ docker-compose up -d
 - Pull requests to `main`
 - Manual workflow dispatch
 
-## 📊 Monitoring & Health Checks
+## Monitoring & Health Checks
 
 ### Health Check Endpoint: `/health`
 ```json
@@ -209,7 +281,7 @@ docker-compose up -d
 - Memory and CPU usage
 - Error rates and logging
 
-## 📋 Error Budget Policy
+## Error Budget Policy
 
 ### Service Level Objectives (SLOs):
 - **Availability**: 99.9% uptime
@@ -226,7 +298,7 @@ docker-compose up -d
 - 80% error budget consumed: Critical alert
 - 100% error budget consumed: Emergency response
 
-## 🧪 Testing Strategy
+## Testing Strategy
 
 ### Test Types:
 - **Unit Tests**: Individual function testing
@@ -241,7 +313,7 @@ npm run test:watch    # Watch mode for development
 npm run lint          # Code quality checks
 ```
 
-## 🚀 Deployment Environments
+## Deployment Environments
 
 ### Development:
 - Local machine with Docker Compose
@@ -258,7 +330,7 @@ npm run lint          # Code quality checks
 - Monitoring and alerting
 - Automated backups
 
-## 📈 Performance Optimization
+## Performance Optimization
 
 ### Backend Optimizations:
 - Connection pooling for MySQL
@@ -277,7 +349,7 @@ npm run lint          # Code quality checks
 - Non-root user execution
 - Health check integration
 
-## 🤝 Contributing
+## Contributing
 
 ### Git Workflow:
 1. Create feature branch: `git checkout -b feature/new-feature`
@@ -294,7 +366,7 @@ npm run lint          # Code quality checks
 - 100% test coverage goal
 - Documentation updates required
 
-## 📝 Next Steps
+## Next Steps
 
 ### Planned Enhancements:
 - [ ] Add user authentication
@@ -312,7 +384,7 @@ npm run lint          # Code quality checks
 - [ ] Security headers implementation
 - [ ] Vulnerability scanning in CI
 
-## 📞 Support
+## Support
 
 For issues and questions:
 - Create GitHub issue
