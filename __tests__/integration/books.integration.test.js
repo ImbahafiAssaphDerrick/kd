@@ -1,4 +1,5 @@
 const { setupTestDatabase, cleanupTestDatabase, insertTestData } = require('../../src/utils/testHelpers');
+const _app = require('../../index');
 
 // Note: Update with actual app path when implemented
 let app;
