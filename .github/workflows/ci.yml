@@ -82,12 +82,13 @@ jobs:
     
     - name: Initialize test database
       run: |
-        mysql -h localhost -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS library_test;"
+        # use TCP (127.0.0.1) and explicit port to avoid local socket usage
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS library_test;"
     
     - name: Run integration tests
       run: npm run test:integration
       env:
-        DB_HOST: localhost
+        DB_HOST: 127.0.0.1
         DB_USER: root
         DB_PASSWORD: password
         DB_NAME: library_test
@@ -125,7 +126,7 @@ jobs:
     - name: Run E2E tests
       run: npm run test:e2e
       env:
-        DB_HOST: localhost
+        DB_HOST: 127.0.0.1
         DB_USER: root
         DB_PASSWORD: password
         DB_NAME: library_test
