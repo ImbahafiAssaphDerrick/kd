@@ -1,21 +1,19 @@
 const { setupTestDatabase, cleanupTestDatabase, insertTestData } = require('../../src/utils/testHelpers');
-const _app = require('../../index');
-const _request = require('supertest');
 
 // Note: Update with actual app path when implemented
-let app;
+// let app;
 
 beforeAll(async () => {
   // Initialize test database
   await setupTestDatabase();
   
   // Mock app for testing
-  app = {
-    get: jest.fn(),
-    post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn()
-  };
+  // app = {
+  //   get: jest.fn(),
+  //   post: jest.fn(),
+  //   put: jest.fn(),
+  //   delete: jest.fn()
+  // };
 });
 
 afterAll(async () => {
