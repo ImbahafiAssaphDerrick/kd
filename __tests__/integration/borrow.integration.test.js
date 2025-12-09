@@ -1,16 +1,25 @@
-const { setupTestDatabase, cleanupTestDatabase, insertTestData, getMockBorrow } = require('../../src/utils/testHelpers');
+const { setupTestDatabase, cleanupTestDatabase, insertTestData } = require('../../src/utils/testHelpers');
 
-beforeAll(async () => {
-  await setupTestDatabase();
-});
-
-afterAll(async () => {
-  await cleanupTestDatabase();
-});
+// Helper function to create mock borrow data
+function getMockBorrow() {
+  return {
+    book_id: 1,
+    borrower_id: 1,
+    due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 14 days from now
+  };
+}
 
 describe('Borrow/Return API Integration Tests', () => {
+  beforeAll(async () => {
+    await setupTestDatabase();
+  });
+
   beforeEach(async () => {
     await insertTestData();
+  });
+
+  afterAll(async () => {
+    await cleanupTestDatabase();
   });
 
   test('should allow borrowing an available book', async () => {
