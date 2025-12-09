@@ -5,7 +5,6 @@ process.env.DB_PASSWORD = process.env.DB_PASSWORD || 'password';
 process.env.DB_NAME = process.env.DB_NAME || 'library_test';
 process.env.PORT = process.env.PORT || 3001;
 
-// Suppress console logs during tests
 if (process.env.SUPPRESS_LOGS === 'true') {
   global.console = {
     ...console,
