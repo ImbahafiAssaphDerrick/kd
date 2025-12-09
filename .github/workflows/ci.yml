@@ -179,7 +179,7 @@ jobs:
     
     steps:
     - name: Send Slack notification
-      if: hashFiles('') != '' && secrets.SLACK_WEBHOOK_URL != ''
+      if: env.SLACK_WEBHOOK_URL != ''
       uses: slackapi/slack-github-action@v1
       with:
         payload: |
