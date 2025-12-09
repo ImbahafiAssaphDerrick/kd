@@ -1,66 +1,42 @@
 const request = require('supertest');
 const app = require('../../index');
 
-describe('E2E Tests - API Endpoints', () => {
-  test('should validate health endpoint exists', () => {
-    const endpoint = '/health';
-    expect(endpoint).toBeTruthy();
-    expect(endpoint).toMatch(/^\/health$/);
-  });
-
-  test('should validate books API endpoints', () => {
-    const endpoints = [
-      '/api/books',
-      '/api/books/:id'
-    ];
-
-    expect(endpoints.length).toBeGreaterThan(0);
-    endpoints.forEach(endpoint => {
-      expect(endpoint).toMatch(/^\/api\/books/);
+describe('E2E API Tests', () => {
+  describe('Health Check', () => {
+    test('GET /health should return 200', async () => {
+      const response = await request(app).get('/health');
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('OK');
     });
   });
 
-  test('should validate borrowers API endpoints', () => {
-    const endpoints = [
-      '/api/borrowers',
-      '/api/borrowers/:id',
-      '/api/borrowers/:borrowerId/active-borrows'
-    ];
+  describe('Books API', () => {
+    test('GET /api/books should return array', async () => {
+      const response = await request(app).get('/api/books');
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+    });
 
-    expect(endpoints.length).toBeGreaterThan(0);
-    endpoints.forEach(endpoint => {
-      expect(endpoint).toMatch(/^\/api\/borrowers/);
+    test('POST /api/books should require title and author', async () => {
+      const response = await request(app)
+        .post('/api/books')
+        .send({});
+      expect(response.status).toBe(400);
     });
   });
 
-  test('should validate borrow/return endpoints', () => {
-    const endpoints = [
-      '/api/borrow',
-      '/api/return/:borrowHistoryId'
-    ];
-
-    expect(endpoints.length).toBe(2);
-    endpoints.forEach(endpoint => {
-      expect(endpoint.startsWith('/api/')).toBe(true);
+  describe('Borrowers API', () => {
+    test('GET /api/borrowers should return array', async () => {
+      const response = await request(app).get('/api/borrowers');
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
     });
-  });
 
-  test('should validate HTTP methods for endpoints', () => {
-    const routes = {
-      'GET /api/books': 'GET',
-      'POST /api/books': 'POST',
-      'PUT /api/books/:id': 'PUT',
-      'DELETE /api/books/:id': 'DELETE'
-    };
-
-    Object.entries(routes).forEach(([_route, method]) => {
-      expect(method).toMatch(/^(GET|POST|PUT|DELETE|PATCH)$/);
+    test('POST /api/borrowers should require name', async () => {
+      const response = await request(app)
+        .post('/api/borrowers')
+        .send({});
+      expect(response.status).toBe(400);
     });
-  });
-
-  test('should respond with 200 for health', (done) => {
-    request(app)
-      .get('/health')
-      .expect(200, done);
   });
 });

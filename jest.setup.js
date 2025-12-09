@@ -13,3 +13,29 @@ if (process.env.SUPPRESS_LOGS === 'true') {
     info: jest.fn(),
   };
 }
+
+// Jest setup file
+jest.setTimeout(30000);
+
+// Global test utilities
+global.testUtils = {
+  generateTestBook: (overrides = {}) => ({
+    title: `Test Book ${Date.now()}`,
+    author: 'Test Author',
+    isbn: `978${Math.floor(Math.random() * 10000000000)}`,
+    quantity: 1,
+    ...overrides
+  }),
+  
+  generateTestBorrower: (overrides = {}) => ({
+    name: `Test Borrower ${Date.now()}`,
+    email: `test${Date.now()}@example.com`,
+    phone: '1234567890',
+    ...overrides
+  })
+};
+
+// Cleanup after all tests
+afterAll(async () => {
+  // Add any global cleanup here
+});

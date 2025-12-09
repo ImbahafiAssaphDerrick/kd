@@ -1,3 +1,7 @@
+/**
+ * Test helper utilities for Library Management System
+ */
+
 const mysql = require('mysql2/promise');
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -134,9 +138,38 @@ async function insertTestData() {
   }
 }
 
+const generateTestBook = (overrides = {}) => ({
+  title: `Test Book ${Date.now()}`,
+  author: 'Test Author',
+  isbn: `978${Math.floor(Math.random() * 10000000000)}`,
+  quantity: 1,
+  ...overrides
+});
+
+const generateTestBorrower = (overrides = {}) => ({
+  name: `Test Borrower ${Date.now()}`,
+  email: `test${Date.now()}@example.com`,
+  phone: '1234567890',
+  ...overrides
+});
+
+const waitFor = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const cleanupTestData = async (db) => {
+  if (db) {
+    await db.execute('DELETE FROM borrow_history WHERE borrower_id > 0');
+    await db.execute('DELETE FROM books WHERE title LIKE "Test%"');
+    await db.execute('DELETE FROM borrowers WHERE name LIKE "Test%"');
+  }
+};
+
 module.exports = {
   getTestConnection,
   setupTestDatabase,
   cleanupTestDatabase,
-  insertTestData
+  insertTestData,
+  generateTestBook,
+  generateTestBorrower,
+  waitFor,
+  cleanupTestData
 };

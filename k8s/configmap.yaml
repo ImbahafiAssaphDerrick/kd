@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: library-config
+  namespace: library-app
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  DB_NAME: "library_app"
+  DB_HOST: "mysql-service"
+  DB_PORT: "3306"

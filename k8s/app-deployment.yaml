@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: library-app
+  namespace: library-app
+  labels:
+    app: library
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: library
+  # Rolling Update Strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Max pods above desired during update
+      maxUnavailable: 0  # Zero downtime - always keep all pods running
+  template:
+    metadata:
+      labels:
+        app: library
+        version: v1
+    spec:
+      # Pod anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - library
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: library
+        image: ghcr.io/imbahafiassaphderrick/kd:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: library-config
+        - secretRef:
+            name: library-secrets
+        # Resource Requirements
+        resources:
+          requests:
+            cpu: "100m"      # 0.1 CPU core minimum
+            memory: "128Mi"  # 128MB RAM minimum
+          limits:
+            cpu: "500m"      # 0.5 CPU core maximum
+            memory: "512Mi"  # 512MB RAM maximum
+        # Health Checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # Graceful shutdown
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+      terminationGracePeriodSeconds: 30

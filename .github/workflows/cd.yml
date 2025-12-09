@@ -1,0 +1,185 @@
+name: CD Pipeline - Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["Release Pipeline"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'rolling'
+        type: choice
+        options:
+          - rolling
+          - blue-green
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure kubectl
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+      continue-on-error: true
+    
+    - name: Get latest image tag
+      id: get_tag
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "TAG=latest" >> $GITHUB_OUTPUT
+        else
+          echo "TAG=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Update image in deployment
+      run: |
+        sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_tag.outputs.TAG }}|g" k8s/app-deployment.yaml
+    
+    - name: Deploy to Staging (Dry Run)
+      run: |
+        echo "=== Kubernetes Manifests ==="
+        cat k8s/namespace.yaml
+        cat k8s/configmap.yaml
+        cat k8s/app-deployment.yaml
+        cat k8s/service.yaml
+        echo "=== Deployment would apply these manifests ==="
+        echo "kubectl apply -f k8s/namespace.yaml"
+        echo "kubectl apply -f k8s/configmap.yaml"
+        echo "kubectl apply -f k8s/secret.yaml"
+        echo "kubectl apply -f k8s/mysql-deployment.yaml"
+        echo "kubectl apply -f k8s/app-deployment.yaml"
+        echo "kubectl apply -f k8s/service.yaml"
+        echo "kubectl apply -f k8s/hpa.yaml"
+    
+    - name: Verify Deployment (Simulation)
+      run: |
+        echo "=== Deployment Verification ==="
+        echo "Would run: kubectl rollout status deployment/library-app -n library-app --timeout=300s"
+        echo "Would run: kubectl get pods -n library-app"
+        echo "Staging deployment simulation completed successfully!"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: deploy-staging
+    if: github.event.inputs.environment == 'production' || (github.event.workflow_run.conclusion == 'success' && github.ref == 'refs/heads/main')
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure kubectl
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+      continue-on-error: true
+    
+    - name: Rolling Update Deployment
+      if: github.event.inputs.deployment_strategy != 'blue-green'
+      run: |
+        echo "=== Rolling Update Deployment ==="
+        echo "Strategy: maxSurge=1, maxUnavailable=0 (Zero Downtime)"
+        echo ""
+        echo "Would apply:"
+        echo "kubectl apply -f k8s/namespace.yaml"
+        echo "kubectl apply -f k8s/configmap.yaml"
+        echo "kubectl apply -f k8s/secret.yaml"
+        echo "kubectl apply -f k8s/mysql-deployment.yaml"
+        echo "kubectl apply -f k8s/app-deployment.yaml"
+        echo "kubectl apply -f k8s/service.yaml"
+        echo "kubectl apply -f k8s/ingress.yaml"
+        echo "kubectl apply -f k8s/hpa.yaml"
+        echo ""
+        echo "Rolling update simulation completed!"
+    
+    - name: Blue-Green Deployment
+      if: github.event.inputs.deployment_strategy == 'blue-green'
+      run: |
+        echo "=== Blue-Green Deployment ==="
+        echo "Step 1: Deploy Green (new version)"
+        echo "kubectl apply -f k8s/blue-green/green-deployment.yaml"
+        echo ""
+        echo "Step 2: Wait for Green to be ready"
+        echo "kubectl rollout status deployment/library-green -n library-app"
+        echo ""
+        echo "Step 3: Switch traffic to Green"
+        echo "kubectl patch service library-production -n library-app -p '{\"spec\":{\"selector\":{\"version\":\"green\"}}}'"
+        echo ""
+        echo "Step 4: Verify Green is serving traffic"
+        echo "kubectl get endpoints library-production -n library-app"
+        echo ""
+        echo "Step 5: Scale down Blue (optional)"
+        echo "kubectl scale deployment library-blue -n library-app --replicas=0"
+        echo ""
+        echo "Blue-Green deployment simulation completed!"
+    
+    - name: Verify Production Deployment
+      run: |
+        echo "=== Production Verification ==="
+        echo "Would verify:"
+        echo "- Pod status: kubectl get pods -n library-app"
+        echo "- Service endpoints: kubectl get endpoints -n library-app"
+        echo "- HPA status: kubectl get hpa -n library-app"
+        echo "- Ingress status: kubectl get ingress -n library-app"
+        echo ""
+        echo "Production deployment simulation completed!"
+
+  notify-deployment:
+    runs-on: ubuntu-latest
+    name: Notify Deployment Status
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Send Slack notification
+      if: env.SLACK_WEBHOOK_URL != ''
+      uses: slackapi/slack-github-action@v1
+      with:
+        payload: |
+          {
+            "text": "🚀 Deployment Status",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Library Management System - Deployment*\n*Environment:* ${{ github.event.inputs.environment || 'staging' }}\n*Strategy:* ${{ github.event.inputs.deployment_strategy || 'rolling' }}\n*Status:* ${{ needs.deploy-production.result || needs.deploy-staging.result }}\n*Triggered by:* ${{ github.actor }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
