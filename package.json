@@ -12,7 +12,6 @@
     "test:integration": "jest --testPathPattern=__tests__/integration --runInBand",
     "test:e2e": "jest --testPathPattern=__tests__/e2e --runInBand",
     "test": "npm run test:unit",
-    "test:ci": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
