@@ -1,6 +1,6 @@
 {
   "name": "library-management-system",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Library Management System with CI/CD",
   "main": "index.js",
