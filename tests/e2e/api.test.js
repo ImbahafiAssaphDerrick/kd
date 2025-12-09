@@ -53,7 +53,7 @@ describe('E2E Tests - API Endpoints', () => {
       'DELETE /api/books/:id': 'DELETE'
     };
 
-    Object.entries(routes).forEach(([route, method]) => {
+    Object.entries(routes).forEach(([_route, method]) => {
       expect(method).toMatch(/^(GET|POST|PUT|DELETE|PATCH)$/);
     });
   });
