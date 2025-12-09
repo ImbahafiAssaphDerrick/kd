@@ -1,4 +1,13 @@
-const { getMockBorrower } = require('../../src/utils/testHelpers');
+// Helper function to create mock borrower data
+function getMockBorrower() {
+  return {
+    id: 1,
+    name: 'John Doe',
+    email: 'john@example.com',
+    phone: '123-4567',
+    created_at: new Date().toISOString()
+  };
+}
 
 describe('Borrower Model', () => {
   describe('Borrower validation', () => {

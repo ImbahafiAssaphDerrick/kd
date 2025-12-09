@@ -1,4 +1,15 @@
-const { getMockBook } = require('../../src/utils/testHelpers');
+// Helper function to create mock book data
+function getMockBook() {
+  return {
+    id: 1,
+    title: 'Test Book',
+    author: 'Test Author',
+    isbn: '1234567890',
+    quantity: 5,
+    available: 5,
+    created_at: new Date().toISOString()
+  };
+}
 
 describe('Book Model', () => {
   describe('Book validation', () => {
