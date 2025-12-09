@@ -175,10 +175,11 @@ jobs:
     needs: [lint, unit-tests, integration-tests, build]
     runs-on: ubuntu-latest
     name: Notify Slack
-    if: always() && secrets.SLACK_WEBHOOK_URL != ''
+    if: always()
     
     steps:
     - name: Send Slack notification
+      if: hashFiles('') != '' && secrets.SLACK_WEBHOOK_URL != ''
       uses: slackapi/slack-github-action@v1
       with:
         payload: |
