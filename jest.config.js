@@ -14,7 +14,8 @@ module.exports = {
     }
   },
   testMatch: [
-    '**/__tests__/**/*.test.js'
+    '**/__tests__/**/*.test.js',
+    '**/*.test.js'
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   verbose: true,

@@ -1,12 +1,5 @@
 const mysql = require('mysql2/promise');
 
-/**
- * Minimal test helper for integration/e2e tests.
- * - Parses DB_HOST which may be "host" or "host:port"
- * - Defaults to 127.0.0.1:3306 (IPv4) to avoid ::1 socket issues
- * - Exposes: getTestConnection(), setupTestDatabase(), cleanupTestDatabase(), insertTestData()
- */
-
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3306;
 const DB_USER = process.env.DB_USER || 'root';
@@ -37,13 +30,11 @@ async function getTestConnection() {
 }
 
 async function setupTestDatabase() {
-  // Connect to server (no database) to create DB and tables
   const conn = await getTestConnection();
   try {
     await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
     await conn.query(`USE \`${DB_NAME}\`;`);
 
-    // Create tables used by the app/tests (idempotent)
     await conn.query(`
       CREATE TABLE IF NOT EXISTS books (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -92,14 +83,12 @@ async function cleanupTestDatabase() {
   }
 }
 
-// New: insertTestData - clears tables and seeds predictable data for tests
 async function insertTestData() {
   await setupTestDatabase();
   const conn = await getTestConnection();
   try {
     await conn.query(`USE \`${DB_NAME}\`;`);
 
-    // Clear existing rows (keeps tables)
     await conn.query(`
       SET FOREIGN_KEY_CHECKS = 0;
       TRUNCATE TABLE borrow_history;
@@ -108,7 +97,6 @@ async function insertTestData() {
       SET FOREIGN_KEY_CHECKS = 1;
     `);
 
-    // Insert sample books (bulk)
     const books = [
       ['The First Book', 'Author One', 'ISBN-0001', 2, 2],
       ['The Second Book', 'Author Two', null, 1, 1]
@@ -119,7 +107,6 @@ async function insertTestData() {
     );
     const firstBookId = rBooks.insertId;
 
-    // Insert sample borrowers
     const borrowers = [
       ['Alice Example', 'alice@example.com', '1234567890'],
       ['Bob Sample', 'bob@example.com', '0987654321']
@@ -130,13 +117,11 @@ async function insertTestData() {
     );
     const firstBorrowerId = rBorrowers.insertId;
 
-    // Create one active borrow: first book borrowed by first borrower
     const [rHistory] = await conn.query(
       'INSERT INTO borrow_history (book_id, borrower_id, due_date) VALUES (?, ?, ?)',
       [firstBookId, firstBorrowerId, null]
     );
 
-    // Decrease available count for the borrowed book
     await conn.query('UPDATE books SET available = available - 1 WHERE id = ?', [firstBookId]);
 
     return {
