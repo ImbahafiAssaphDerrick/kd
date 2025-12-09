@@ -179,7 +179,7 @@ jobs:
     
     steps:
     - name: Send Slack notification
-      if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+      if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
       uses: slackapi/slack-github-action@v1
       with:
         payload: |
@@ -190,7 +190,7 @@ jobs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "*Library Management System*\n*Branch:* ${{ github.ref }}\n*Status:* ${{ job.status }}"
+                  "text": "*Library Management System*\n*Branch:* ${{ github.ref }}\n*Status:* ${{ job.status }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
                 }
               }
             ]
@@ -198,25 +198,3 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
-  notify-email:
-    needs: [lint, unit-tests, integration-tests, build]
-    runs-on: ubuntu-latest
-    name: Notify Email
-    if: failure()
-    
-    steps:
-    - name: Send email notification
-      if: ${{ env.MAIL_SERVER != '' }}
-      uses: dawidd6/action-send-mail@v3
-      with:
-        server_address: ${{ secrets.MAIL_SERVER }}
-        server_port: ${{ secrets.MAIL_PORT }}
-        username: ${{ secrets.MAIL_USERNAME }}
-        password: ${{ secrets.MAIL_PASSWORD }}
-        subject: 'CI/CD Pipeline Failed - Library Management System'
-        to: ${{ secrets.MAIL_TO }}
-        from: ${{ secrets.MAIL_FROM || 'ci@example.com' }}
-        body: 'Pipeline failed for ${{ github.repository }} on branch ${{ github.ref }}'
-      env:
-        MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
